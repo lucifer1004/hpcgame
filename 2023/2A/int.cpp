@@ -8,7 +8,7 @@
 int main(int argc, char *argv[]) {
   assert(argc >= 2);
   int N = atoi(argv[1]);
-  omp_set_num_threads(8);
+  omp_set_num_threads(omp_get_num_procs());
 
   double sum = 0.0;
 #pragma omp parallel for reduction(+ : sum)
