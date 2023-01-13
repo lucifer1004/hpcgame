@@ -2,7 +2,9 @@ from cgsolver import CGPoissonSolver
 import taichi as ti
 import numpy as np
 
-ti.init(arch=ti.gpu, default_fp=ti.f64, kernel_profiler=True)  # Use device_memory_GB=X to allocate more memory if necessary
+# Use device_memory_GB=X to allocate more memory if necessary
+ti.init(arch=ti.gpu, default_fp=ti.f64,
+        device_memory_fraction=0.8, kernel_profiler=True)
 
 eps = 1e-8
 problem_size = [256, 512, 1024, 2048]

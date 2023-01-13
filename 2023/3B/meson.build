@@ -4,3 +4,4 @@ project('learn-cuda', ['cuda', 'cpp'],
                      'cpp_std=c++14'])
 
 focus = executable('focus', 'focus.cu')
+focus_taichi = executable('focus_taichi', 'focus_taichi.cu')

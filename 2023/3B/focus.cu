@@ -28,13 +28,7 @@ __global__ void ker_test(float *x, int n) {
   }
 }
 
-int cuinit() {
-  float *temp;
-  cudaMalloc(&temp, 128);
-  ker_test<<<1, 32>>>(temp, 32);
-  cudaFree(temp);
-  return 0;
-}
+float *cudata;
 
 int causcal(pane_t pane, result_t result) {
   memset(result.sensordata, 0,

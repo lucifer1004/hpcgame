@@ -4,7 +4,7 @@ import numpy as np
 
 @ti.data_oriented
 class CGPoissonSolver:
-    def __init__(self, n=256, eps=1e-6, quiet=False):
+    def __init__(self, n=256, eps=1e-16, quiet=False):
         self.N = n
         self.eps = eps
         self.quiet = quiet
@@ -23,9 +23,11 @@ class CGPoissonSolver:
         self.alpha = ti.field(dtype=self.real)
         self.beta = ti.field(dtype=self.real)
         ti.root.place(self.alpha, self.beta)
-        ti.root.pointer(ti.ij, self.N_tot//16) \
-            .dense(ti.ij, 16) \
-            .place(self.x, self.p, self.Ap, self.r, self.Ax, self.b)
+        ti.root.dense(ti.ij, (self.N_tot, self.N_tot)).place(
+            self.x, self.p, self.Ap, self.r, self.Ax, self.b)
+        # ti.root.pointer(ti.ij, self.N_tot//16) \
+        #     .dense(ti.ij, 16) \
+        #     .place(self.x, self.p, self.Ap, self.r, self.Ax, self.b)
 
     @ti.kernel
     def init(self):
@@ -78,7 +80,8 @@ class CGPoissonSolver:
         old_rTr = initial_rTr
         self.update_p()  # Initial p = r + beta * p ( beta = 0 )
         # -- Main loop --
-        for i in range(self.steps):
+        # for i in range(self.steps):
+        for i in range(0):
             self.compute_Ap()
             pAp = self.reduce(self.p, self.Ap)
             self.alpha[None] = old_rTr / pAp

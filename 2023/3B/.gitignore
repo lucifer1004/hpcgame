@@ -1,2 +1,6 @@
 .cache
 build
+__pycache__
+*.data
+out.py
+out.txt
