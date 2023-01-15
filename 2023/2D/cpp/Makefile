@@ -1,5 +1,5 @@
 build:
-	g++ -O3 -Wall -std=c++17 rng.cpp -fopenmp -lm -o answer
+	g++ -ggdb3 -O3 -Wall -std=c++17 answer.cpp -pthread -fopenmp -pedantic -lm -o answer -ltbb
 
 clean:
 	rm -rf answer

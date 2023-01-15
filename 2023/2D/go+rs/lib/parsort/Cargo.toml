@@ -1,0 +1,14 @@
+[package]
+name = "parsort"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+libc = "0.2.139"
+rayon = "1.6.1"
+rdst = "0.20.7"

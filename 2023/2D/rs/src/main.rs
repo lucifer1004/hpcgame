@@ -1,15 +1,26 @@
+use rayon::prelude::*;
 use rdst::RadixSort;
 use std::io::{self, BufRead};
+use std::thread;
 
+const THREADS: usize = 8;
+const UNIT: usize = std::usize::MAX / THREADS + 1;
+
+#[inline]
 fn gen_next(gen1: &mut usize, gen2: &mut usize, gen3: &mut usize) -> usize {
     *gen1 ^= *gen1 << 31;
     *gen1 ^= *gen1 >> 17;
     *gen2 ^= *gen2 << 13;
     *gen2 ^= *gen2 >> 5;
     *gen3 += 1;
-    *gen1 ^= *gen2;
+    *gen1 ^= *gen2; 
     *gen2 ^= *gen3;
     *gen1
+}
+
+#[inline]
+fn xor(x: usize, y: usize) -> usize {
+    x ^ y
 }
 
 fn main() {
@@ -22,21 +33,45 @@ fn main() {
         .map(|x| x.parse::<usize>().unwrap())
         .collect::<Vec<usize>>();
 
-    let mut gen1 = params[0];
-    let mut gen2 = params[1];
-    let mut gen3 = params[2];
+    let gen1 = params[0];
+    let gen2 = params[1];
+    let gen3 = params[2];
     let n = params[3];
 
-    let mut a = vec![0usize; n];
-    for i in 0..n {
-        a[i] = gen_next(&mut gen1, &mut gen2, &mut gen3);
+    let mut handles = vec![];
+
+    for tid in 0..THREADS {
+        let handle = thread::spawn(move || {
+            let mut a: Vec<usize> = Vec::with_capacity(n);
+            let mut g1 = gen1;
+            let mut g2 = gen2;
+            let mut g3 = gen3;
+            for _ in 0..n {
+                gen_next(&mut g1, &mut g2, &mut g3);
+                if g1 / UNIT == tid {
+                    a.push(g1);
+                }
+            }
+            a.radix_sort_builder().sort();
+            a
+        });
+        handles.push(handle);
     }
 
-    // a.radix_sort_builder().with_low_mem_tuner().sort();
-    // let mut ans = 0;
-    // for i in 0..n {
-    //     ans ^= a[i] * i;
-    // }
+    let mut cnt = 0;
+    let mut ans = 0;
+    for handle in handles {
+        let res = handle.join().unwrap();
+        let sub = res
+            .par_iter()
+            .enumerate()
+            .map(|(i, num)| (i + cnt) * num)
+            .reduce_with(xor)
+            .unwrap();
 
-    // println!("{}", ans);
+        cnt += res.len();
+        ans ^= sub;
+    }
+
+    println!("{}", ans);
 }
