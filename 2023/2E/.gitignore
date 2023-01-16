@@ -3,4 +3,3 @@ answer
 compile.sh
 compile-job.sh
 /*.txt
-!/CMakeLists.txt
