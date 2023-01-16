@@ -41,26 +41,17 @@ with open("conf.data", mode="rb") as bfile:
     for i in range(pane_count + 1):
         lens_index[i] = struct.unpack("<i", contents[ptr:ptr+4])[0]
         ptr += 4
-    lens_x = np.zeros(lens_index[-1])
-    lens_y = np.zeros(lens_index[-1])
-    lens_r = np.zeros(lens_index[-1])
-    lens_d = np.zeros(lens_index[-1])
-    for i in range(lens_index[-1]):
-        lens_x[i] = struct.unpack("<f", contents[ptr:ptr+4])[0]
-        lens_y[i] = struct.unpack("<f", contents[ptr+4:ptr+8])[0]
-        lens_r[i] = struct.unpack("<f", contents[ptr+8:ptr+12])[0]
-        lens_d[i] = struct.unpack("<f", contents[ptr+12:ptr+16])[0]
+    lens = np.zeros(4 * lens_index[-1])
+    for i in range(0, 4 * lens_index[-1], 4):
+        lens[i] = struct.unpack("<f", contents[ptr:ptr+4])[0]
+        lens[i + 1] = struct.unpack("<f", contents[ptr+4:ptr+8])[0]
+        lens[i + 2] = struct.unpack("<f", contents[ptr+8:ptr+12])[0]
+        lens[i + 3] = struct.unpack("<f", contents[ptr+12:ptr+16])[0]
         ptr += 16
 
 sensor_data = ti.field(dtype=ti.i32, shape=(sensor_density, sensor_density))
-lx = ti.field(dtype=ti.f32, shape=(len(lens_x)))
-lx.from_numpy(lens_x)
-ly = ti.field(dtype=ti.f32, shape=(len(lens_x)))
-ly.from_numpy(lens_y)
-lr = ti.field(dtype=ti.f32, shape=(len(lens_x)))
-lr.from_numpy(lens_r)
-ld = ti.field(dtype=ti.f32, shape=(len(lens_x)))
-ld.from_numpy(lens_d)
+lens_data = ti.field(dtype=ti.f32, shape=len(lens))
+lens_data.from_numpy(lens)
 pos = ti.field(dtype=ti.f32, shape=(pane_count))
 pos.from_numpy(pane_pos)
 index = ti.field(dtype=ti.i32, shape=(pane_count + 1))
@@ -71,6 +62,10 @@ index.from_numpy(lens_index)
 def causcal():
     rs = 1.0 / ray_density
 
+    ti.loop_config(block_dim=128)
+    ti.block_local(lens_data)
+    ti.block_local(pos)
+    ti.block_local(index)
     for i, j in ti.ndrange(ray_density, ray_density):
         y = (i + 0.5) * rs
         x = (j + 0.5) * rs
@@ -91,15 +86,16 @@ def causcal():
                 s = index[k]
                 e = index[k + 1]
                 for l in range(s, e):
-                    rx = x - lx[l]
-                    ry = y - ly[l]
+                    rx = x - lens_data[4 * l]
+                    ry = y - lens_data[4 * l + 1]
                     rr = rx * rx + ry * ry
-                    invr02 = lr[l] * lr[l]
+                    invr02 = lens_data[4 * l + 2] ** 2
                     if rr < invr02 * 0.99999:
                         invr02 = 1.0 / invr02
                         rr *= invr02
                         rr = 4.0 / (1.0 - rr)
-                        rr = -0.5 * ti.exp(4.0 - rr) * rr * rr * invr02 * ld[l]
+                        rr = -0.5 * ti.exp(4.0 - rr) * rr * \
+                            rr * invr02 * lens_data[4 * l + 3]
                         gx += rx * rr
                         gy += ry * rr
 
