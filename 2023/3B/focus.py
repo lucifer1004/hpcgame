@@ -31,17 +31,14 @@ lens_data = ti.field(dtype=ti.f32, shape=len(lens))
 lens_data.from_numpy(lens)
 pos = ti.field(dtype=ti.f32, shape=(pane_count))
 pos.from_numpy(pane_pos)
-index = ti.field(dtype=ti.i32, shape=(pane_count + 1))
-index.from_numpy(lens_index)
 
 
 @ti.kernel
 def causcal():
     rs = 1.0 / ray_density
-    ti.loop_config(block_dim=128)
+    ti.loop_config(block_dim=256)
     ti.block_local(lens_data)
     ti.block_local(pos)
-    ti.block_local(index)
     for i, j in ti.ndrange(ray_density, ray_density):
         y = (i + 0.5) * rs
         x = (j + 0.5) * rs
@@ -59,9 +56,7 @@ def causcal():
                 z = pos[k]
                 gx = 0.0
                 gy = 0.0
-                s = index[k]
-                e = index[k + 1]
-                for l in range(s, e):
+                for l in range(k * 256, (k + 1) * 256):
                     rx = x - lens_data[4 * l]
                     ry = y - lens_data[4 * l + 1]
                     rr = rx * rx + ry * ry

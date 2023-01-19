@@ -5,6 +5,7 @@
 
 #define GRID_DIM 512
 #define BLOCK_DIM 512
+#define N 512
 
 struct pane_t {
   int panecount;
@@ -28,16 +29,35 @@ __global__ void causcal_kernel(int *cudata, int *lensindex, float *panepos,
   float rs = 1.0f / raydensity;
   float y, x, z, kx, ky, invkz;
 
-  for (int i = blockIdx.x; i < raydensity; i += GRID_DIM) {
-    for (int j = threadIdx.x; j < raydensity; j += BLOCK_DIM) {
-      y = rs * (0.5f + i);
-      x = rs * (0.5f + j);
+  int i_start = blockIdx.x * raydensity / GRID_DIM;
+  int j_start = threadIdx.x * raydensity / BLOCK_DIM;
+  float x_min = rs * (0.5f + j_start),
+        x_max = rs * (0.5f + j_start + (float)raydensity / BLOCK_DIM - 1);
+  float y_min = rs * (0.5f + i_start),
+        y_max = rs * (0.5f + i_start + (float)raydensity / GRID_DIM - 1);
+
+  int intersected[N];
+  int ptr = 0;
+  for (int l = 0; l < panecount * 256 * 4; l += 4) {
+    float rx = lensdata[l];
+    float ry = lensdata[l + 1];
+    float r = lensdata[l + 2];
+    if (rx - r < x_max && rx + r > x_min && ry - r < y_max && ry + r > y_min)
+      intersected[ptr++] = l;
+  }
+  intersected[ptr++] = 10000000;
+
+  for (int i = 0; i < raydensity / GRID_DIM; i++) {
+    for (int j = 0; j < raydensity / BLOCK_DIM; j++) {
+      y = rs * (0.5f + i_start + i);
+      x = rs * (0.5f + j_start + j);
       z = 0.0f;
       kx = 0.0f;
       ky = 0.0f;
       invkz = 1.0f;
       bool broken = false;
 
+      int pptr = 0;
       for (int k = 0; k < panecount; k++) {
         x += (panepos[k] - z) * kx * invkz;
         y += (panepos[k] - z) * ky * invkz;
@@ -47,7 +67,10 @@ __global__ void causcal_kernel(int *cudata, int *lensindex, float *panepos,
           float gx = 0.0f, gy = 0.0f;
           int is = lensindex[k];
           int ie = lensindex[k + 1];
-          for (int l = 4 * is; l < 4 * ie; l += 4) {
+          for (; pptr < ptr && intersected[pptr] >= is * 4 &&
+                 intersected[pptr] < ie * 4;
+               pptr++) {
+            int l = intersected[pptr];
             float rx = x - lensdata[l];
             float ry = y - lensdata[l + 1];
             float r = rx * rx + ry * ry;
